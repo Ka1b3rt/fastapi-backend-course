@@ -53,22 +53,11 @@ class Order:
         dish_list = "\n".join([str(dish) for dish in self.dishes])
         return f"Order for {self.customer.name}:\n{dish_list}\nTotal: ${self.final_total():.2f}"
 
-
-class GroupOrder(Order):
-    def __init__(self, customers):
-        super().__init__(customer=None)  # Групповой заказ не привязан к одному клиенту
-        self.customers = customers
-
     def split_bill(self):
         if not self.customers:
             raise ValueError("Нет клиентов для разделения счета.")
         total = self.final_total()
         return total / len(self.customers)
-
-    def __str__(self):
-        customer_list = ", ".join([customer.name for customer in self.customers])
-        dish_list = "\n".join([str(dish) for dish in self.dishes])
-        return f"Group Order for {customer_list}:\n{dish_list}\nTotal: ${self.final_total():.2f}"
   
 class Dish:
     def __init__(self, name, price, category):
@@ -106,7 +95,6 @@ vip_customer = Customer("Bob", "VIP")
 # Индивидуальный заказ
 order1 = Order(regular_customer)
 order1.add_dish(pizza)
-order1.add_dish(ice_cream)
 
 print(order1)  # Вывод информации о заказе
 print(f"Final Total: ${order1.final_total():.2f}")  # Итоговая стоимость
@@ -114,7 +102,6 @@ print(f"Final Total: ${order1.final_total():.2f}")  # Итоговая стои�
 # Групповой заказ
 group_order = GroupOrder([regular_customer, vip_customer])
 group_order.add_dish(pizza)
-group_order.add_dish(ice_cream)
 group_order.add_dish(coffee)
 
 print(group_order)  # Вывод информации о групповом заказе
