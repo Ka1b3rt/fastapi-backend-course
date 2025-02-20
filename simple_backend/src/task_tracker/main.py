@@ -6,7 +6,7 @@ app = FastAPI()
 @app.get("/tasks")
 def get_tasks():
     with open('tasks.json', 'r', encoding = 'utf-8') as f:
-            tasks = json.load(f)
+        tasks = json.load(f)
     return tasks
 
 @app.post("/tasks")
