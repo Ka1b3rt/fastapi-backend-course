@@ -2,11 +2,18 @@ from fastapi import FastAPI, HTTPException, Path, Body # type: ignore
 from pydantic import BaseModel # type: ignore
 from typing import List, Optional
 import requests # type: ignore
+import os
 
 app = FastAPI()
 
 # Конфигурация MockAPI
 MOCKAPI_BASE_URL = "https://67b85410699a8a7baef39d0f.mockapi.io/api/v1/tasks/Tasks"  # Замените на ваш URL
+
+# Конфигурация Cloudflare Workers AI
+CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4/accounts/c0444b3d36c2cc03c46a304589a12f35/ai/run/@cf/meta/llama-2-7b-chat-int8"  # Замените на ваш URL
+
+CLOUDFLARE_API_TOKEN = 'jZJcMYYtMOA64hhmUduk1axSYGhO-YqNbJX1vCmG'
+#os.getenv("CLOUDFLARE_API_TOKEN")  # Токен из переменных окружения
 
 # Pydantic модель для задачи
 class Task(BaseModel):
@@ -14,6 +21,32 @@ class Task(BaseModel):
     title: str
     description: Optional[str] = None
     completed: bool = False
+
+# Класс для работы с Cloudflare Workers AI
+class CloudflareAI:
+    def __init__(self, api_url: str, api_token: str):
+        self.api_url = api_url
+        self.api_token = api_token
+
+    def get_llm_response(self, prompt: str) -> str:
+        """Отправляет запрос к LLM и возвращает ответ."""
+        headers = {
+            "Authorization": f"Bearer {self.api_token}",
+            "Content-Type": "application/json",
+        }
+        data = {
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt},
+            ]
+        }
+        response = requests.post(self.api_url, headers=headers, json=data)
+        if response.status_code == 200:
+            return response.json().get("result", {}).get("response", "No response from LLM")
+        raise HTTPException(status_code=500, detail="Failed to get response from LLM")
+
+# Инициализация Cloudflare AI
+cloudflare_ai = CloudflareAI(CLOUDFLARE_API_URL, CLOUDFLARE_API_TOKEN)
 
 # Вспомогательные функции для работы с MockAPI
 def fetch_tasks() -> List[dict]:
@@ -67,6 +100,17 @@ def get_tasks():
 # POST /tasks - Создать новую задачу
 @app.post("/tasks", response_model=Task)
 def create_task(task: Task):
+    # Отправляем текст задачи в LLM
+    llm_prompt = f"Explain how to solve the task: {task.title}. {task.description or ''}"
+    llm_response = cloudflare_ai.get_llm_response(llm_prompt)
+
+    # Добавляем ответ LLM в описание задачи
+    if task.description:
+        task.description += f"\n\nLLM Suggestion: {llm_response}"
+    else:
+        task.description = f"LLM Suggestion: {llm_response}"
+
+    # Создаем задачу в MockAPI
     return create_task_in_mockapi(task)
 
 # PUT /tasks/{task_id} - Обновить существующую задачу
